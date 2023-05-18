@@ -5,6 +5,10 @@ type RichText struct {
 	entities []Entity
 }
 
+func (rt *RichText) Text() string {
+	return rt.text
+}
+
 type Entity struct {
 	start uint
 	end   uint

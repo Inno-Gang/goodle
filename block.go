@@ -4,6 +4,22 @@ import "time"
 
 type BlockType int8
 
+func (bt BlockType) Name() string {
+	switch bt {
+	case BlockTypeLink:
+		return "Link"
+	case BlockTypeFile:
+		return "File"
+	case BlockTypeFolder:
+		return "Folder"
+	case BlockTypeAssignment:
+		return "Assignment"
+	case BlockTypeQuiz:
+		return "Quiz"
+	}
+	return "Unsupported"
+}
+
 const (
 	BlockTypeUnsupported BlockType = 0
 	BlockTypeLink        BlockType = 1
@@ -37,14 +53,14 @@ type BlockFolder interface {
 
 type BlockAssignment interface {
 	Block
-	SubmissionsAcceptedFrom() *time.Time
-	DeadlineAt() *time.Time
-	StrictDeadlineAt() *time.Time
+	SubmissionsAcceptedFrom() (time.Time, bool)
+	DeadlineAt() (time.Time, bool)
+	StrictDeadlineAt() (time.Time, bool)
 }
 
 type BlockQuiz interface {
 	Block
-	OpensAt() *time.Time
-	ClosesAt() *time.Time
-	Duration() *time.Duration
+	OpensAt() (time.Time, bool)
+	ClosesAt() (time.Time, bool)
+	Duration() (time.Duration, bool)
 }
