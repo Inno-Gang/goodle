@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -35,13 +36,16 @@ const moodleLoginPageUrl = "https://moodle.innopolis.university/admin/tool/mobil
 var loginRedirectLinkRegex = regexp.MustCompile("href=\"(https://moodle\\.innopolis\\.university/auth/oauth2/login\\.php\\?[^\"]+)\"")
 var innoAuthLinkPathRegex = regexp.MustCompile("action=\"(/adfs/oauth2/authorize[^\"]+)\"")
 
-func (ia *IuAuthenticator) Authenticate(credentials IuCredentials) (*moodle.Client, error) {
+func (ia *IuAuthenticator) Authenticate(
+	ctx context.Context,
+	credentials IuCredentials,
+) (*moodle.Client, error) {
 	jar, _ := cookiejar.New(nil)
 	httpClient := &http.Client{
 		Jar: jar,
 	}
 
-	moodleLoginPage, err := getHtml(httpClient, moodleLoginPageUrl)
+	moodleLoginPage, err := getHtml(ctx, httpClient, moodleLoginPageUrl)
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +55,7 @@ func (ia *IuAuthenticator) Authenticate(credentials IuCredentials) (*moodle.Clie
 		return nil, err
 	}
 
-	innoAuthPage, err := getHtml(httpClient, authRedirectUrl)
+	innoAuthPage, err := getHtml(ctx, httpClient, authRedirectUrl)
 	if err != nil {
 		return nil, err
 	}
@@ -62,6 +66,7 @@ func (ia *IuAuthenticator) Authenticate(credentials IuCredentials) (*moodle.Clie
 	}
 
 	token, err := loginInnoObtainWsToken(
+		ctx,
 		httpClient,
 		innoAuthPath,
 		credentials.Email,
@@ -78,8 +83,12 @@ func (ia *IuAuthenticator) Authenticate(credentials IuCredentials) (*moodle.Clie
 	)
 }
 
-func getHtml(client *http.Client, url string) (string, error) {
-	resp, err := client.Get(url)
+func getHtml(ctx context.Context, client *http.Client, url string) (string, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return "", err
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -104,6 +113,7 @@ func applyRegexOnHtml(regex *regexp.Regexp, htmlContent string) (string, error) 
 const innoAuthBaseUrl = "https://sso.university.innopolis.ru"
 
 func loginInnoObtainWsToken(
+	ctx context.Context,
 	client *http.Client,
 	authPath string,
 	username string,
@@ -112,11 +122,12 @@ func loginInnoObtainWsToken(
 	innoAuthLink := innoAuthBaseUrl + authPath
 	formData := getFormUrlEncodedForAuth(username, password)
 
-	resp, err := client.Post(
-		innoAuthLink,
-		"application/x-www-form-urlencoded",
-		strings.NewReader(formData),
-	)
+	req, err := http.NewRequestWithContext(ctx, "POST", innoAuthLink, strings.NewReader(formData))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	resp, err := client.Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -128,7 +139,7 @@ func loginInnoObtainWsToken(
 
 	submitTokenPageHtml := string(data)
 
-	tokenEncoded, err := submitTokenPage(client, submitTokenPageHtml)
+	tokenEncoded, err := submitTokenPage(ctx, client, submitTokenPageHtml)
 	if err != nil {
 		return "", err
 	}
@@ -155,6 +166,7 @@ func getFormUrlEncodedForAuth(username string, password string) string {
 var moodleMobileTokenRegex = regexp.MustCompile("moodlemobile://token=(\\S+)\\s*$")
 
 func submitTokenPage(
+	ctx context.Context,
 	client *http.Client,
 	pageHtml string,
 ) (string, error) {
@@ -175,11 +187,12 @@ func submitTokenPage(
 		}
 		return nil
 	}
-	resp, err := client.Post(
-		actionUrl,
-		"application/x-www-form-urlencoded",
-		strings.NewReader(form.Encode()),
-	)
+	req, err := http.NewRequestWithContext(ctx, "POST", actionUrl, strings.NewReader(form.Encode()))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	resp, err := client.Do(req)
 	client.CheckRedirect = oldCheckRedirect
 	if err == nil {
 		defer resp.Body.Close()
@@ -210,12 +223,12 @@ func parsePartsFromSubmitTokenPage(pageHtml string) (
 	}
 	code, err = applyRegexOnHtml(submitTokenFormCodeFieldRegex, pageHtml)
 	if err != nil {
-		err = fmt.Errorf("failed to find code field patterin in token submit page: %w", err)
+		err = fmt.Errorf("failed to find code field pattern in token submit page: %w", err)
 		return
 	}
 	state, err = applyRegexOnHtml(submitTokenFormStateFieldRegex, pageHtml)
 	if err != nil {
-		err = fmt.Errorf("failed to find state field patterin in token submit page: %w", err)
+		err = fmt.Errorf("failed to find state field pattern in token submit page: %w", err)
 		return
 	}
 	return

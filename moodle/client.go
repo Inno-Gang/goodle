@@ -1,6 +1,7 @@
 package moodle
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -34,8 +35,8 @@ func NewClient(
 	}, nil
 }
 
-func (mc *Client) GetRecentCourses() ([]goodle.Course, error) {
-	data, err := mc.callWsFunc("core_course_get_recent_courses", "")
+func (mc *Client) GetRecentCourses(ctx context.Context) ([]goodle.Course, error) {
+	data, err := mc.callWsFunc(ctx, "core_course_get_recent_courses", "")
 	if err != nil {
 		return nil, err
 	}
@@ -54,9 +55,9 @@ func (mc *Client) GetRecentCourses() ([]goodle.Course, error) {
 	return result, nil
 }
 
-func (mc *Client) GetCourseSections(courseId int) ([]goodle.Section, error) {
+func (mc *Client) GetCourseSections(ctx context.Context, courseId int) ([]goodle.Section, error) {
 	arg := fmt.Sprintf("{\"courseid\":\"%d\",\"options\":[{\"name\":\"excludemodules\",\"value\":\"0\"},{\"name\":\"excludecontents\",\"value\":\"0\"},{\"name\":\"includestealthmodules\",\"value\":\"1\"}]}", courseId)
-	data, err := mc.callWsFunc("core_course_get_contents", arg)
+	data, err := mc.callWsFunc(ctx, "core_course_get_contents", arg)
 
 	var rawSections []*rawSection
 	err = json.NewDecoder(strings.NewReader(data)).Decode(&rawSections)

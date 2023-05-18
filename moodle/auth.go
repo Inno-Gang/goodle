@@ -1,5 +1,7 @@
 package moodle
 
+import "context"
+
 type Authenticator[C any] interface {
-	Authenticate(credentials C) (*Client, error)
+	Authenticate(ctx context.Context, credentials C) (*Client, error)
 }

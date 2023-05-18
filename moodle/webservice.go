@@ -1,14 +1,17 @@
 package moodle
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strings"
 )
 
 func (mc *Client) callWsFuncs(
+	ctx context.Context,
 	requests []*wsFuncRequest,
 ) ([]*wsFuncResponse, error) {
 	reqUrl := mc.baseUrl.JoinPath("/webservice/rest/server.php")
@@ -32,11 +35,17 @@ func (mc *Client) callWsFuncs(
 	form.Set("wstoken", mc.token)
 	body := strings.NewReader(form.Encode())
 
-	resp, err := mc.client.Post(
+	req, err := http.NewRequestWithContext(
+		ctx,
+		"POST",
 		reqUrl.String(),
-		"application/x-www-form-urlencoded",
 		body,
 	)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	resp, err := mc.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -61,11 +70,14 @@ func (mc *Client) callWsFuncs(
 	return responses, nil
 }
 
-func (mc *Client) callWsFunc(name string, args string) (string, error) {
-	responses, err := mc.callWsFuncs([]*wsFuncRequest{{
-		functionName: name,
-		arguments:    args,
-	}})
+func (mc *Client) callWsFunc(ctx context.Context, name string, args string) (string, error) {
+	responses, err := mc.callWsFuncs(
+		ctx,
+		[]*wsFuncRequest{{
+			functionName: name,
+			arguments:    args,
+		}},
+	)
 	if err != nil {
 		return "", err
 	}
