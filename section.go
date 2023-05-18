@@ -1,6 +1,10 @@
 package goodle
 
+import "github.com/inno-gang/goodle/richtext"
+
 type Section interface {
-	Resource
+	Id() int
+	Title() string
+	Description() *richtext.RichText
 	Blocks() []Block
 }

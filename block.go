@@ -17,50 +17,53 @@ func (bt BlockType) Name() string {
 	case BlockTypeQuiz:
 		return "Quiz"
 	}
-	return "Unsupported"
+	return "Unknown"
 }
 
 const (
-	BlockTypeUnsupported BlockType = 0
-	BlockTypeLink        BlockType = 1
-	BlockTypeFile        BlockType = 2
-	BlockTypeFolder      BlockType = 3
-	BlockTypeAssignment  BlockType = 4
-	BlockTypeQuiz        BlockType = 5
+	BlockTypeUnknown    BlockType = 0
+	BlockTypeLink       BlockType = 1
+	BlockTypeFile       BlockType = 2
+	BlockTypeFolder     BlockType = 3
+	BlockTypeAssignment BlockType = 4
+	BlockTypeQuiz       BlockType = 5
 )
 
 type Block interface {
-	Resource
+	Id() int
 	Type() BlockType
+	Title() string
+	MoodleUrl() string
 }
 
 type BlockLink interface {
+	Block
 	Url() string
 }
 
 type BlockFile interface {
 	Block
 	DownloadUrl() string
-	SizeBytes() uint64
+	FileName() string
+	SizeBytes() uint
+	MimeType() string
 	CreatedAt() time.Time
 	LastModifiedAt() time.Time
 }
 
 type BlockFolder interface {
 	Block
-	DownloadZipUrl() string
 }
 
 type BlockAssignment interface {
 	Block
-	SubmissionsAcceptedFrom() (time.Time, bool)
-	DeadlineAt() (time.Time, bool)
-	StrictDeadlineAt() (time.Time, bool)
+	SubmissionsAcceptedFrom() time.Time
+	DeadlineAt() time.Time
+	StrictDeadlineAt() time.Time
 }
 
 type BlockQuiz interface {
 	Block
-	OpensAt() (time.Time, bool)
-	ClosesAt() (time.Time, bool)
-	Duration() (time.Duration, bool)
+	OpensAt() time.Time
+	ClosesAt() time.Time
 }

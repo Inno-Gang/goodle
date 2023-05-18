@@ -74,14 +74,10 @@ func (mc *Client) GetCourseSections(courseId int) ([]goodle.Section, error) {
 
 type rawCourse struct {
 	Id_            int    `json:"id"`
-	IdNumber       string `json:"idnumber"`
 	FullName       string `json:"fullname"`
-	ShortName      string `json:"shortname"`
 	ViewUrl        string `json:"viewurl"`
 	CourseCategory string `json:"coursecategory"`
 	Summary        string `json:"summary"`
-	StartDate      uint64 `json:"startdate"`
-	EndDate        uint64 `json:"enddate"`
 }
 
 func (rc *rawCourse) Id() int {
@@ -121,127 +117,22 @@ func (rs *rawSection) Description() *richtext.RichText {
 	return text
 }
 
-func (rs *rawSection) MoodleUrl() string {
-	//TODO implement me
-	return ""
-}
-
 func (rs *rawSection) Blocks() []goodle.Block {
 	out := make([]goodle.Block, len(rs.Modules))
 	for i, m := range rs.Modules {
-		out[i] = m
+		out[i] = m.toBlock()
 	}
 	return out
 }
 
 type rawModule struct {
-	Id_          int              `json:"id"`
-	Url_         string           `json:"url"`
+	Id           int              `json:"id"`
+	Url          string           `json:"url"`
 	Name         string           `json:"name"`
 	ModName      string           `json:"modname"`
 	Dates        []rawDate        `json:"dates"`
 	Contents     []rawContent     `json:"contents"`
 	ContentsInfo *rawContentsInfo `json:"contentsinfo"`
-}
-
-func (rm rawModule) Id() int {
-	return rm.Id_
-}
-
-func (rm rawModule) Title() string {
-	return rm.Name
-}
-
-func (rm rawModule) Description() *richtext.RichText {
-	//TODO implement me
-	r, _ := richtext.ParseHtml("")
-	return r
-}
-
-func (rm rawModule) MoodleUrl() string {
-	return rm.Url_
-}
-
-func (rm rawModule) Type() goodle.BlockType {
-	switch rm.ModName {
-	case "url":
-		return goodle.BlockTypeLink
-	case "resource":
-		return goodle.BlockTypeFile
-	case "folder":
-		return goodle.BlockTypeFolder
-	case "quiz":
-		return goodle.BlockTypeQuiz
-	case "assign":
-		return goodle.BlockTypeAssignment
-	}
-	return goodle.BlockTypeUnsupported
-}
-
-func (rm rawModule) SubmissionsAcceptedFrom() (time.Time, bool) {
-	for _, d := range rm.Dates {
-		if d.DataId == "allowsubmissionsfromdate" {
-			return time.Unix(int64(d.Timestamp), 0), true
-		}
-	}
-	return time.Time{}, false
-}
-
-func (rm rawModule) DeadlineAt() (time.Time, bool) {
-	for _, d := range rm.Dates {
-		if d.DataId == "duedate" {
-			return time.Unix(int64(d.Timestamp), 0), true
-		}
-	}
-	return time.Time{}, false
-}
-
-func (rm rawModule) StrictDeadlineAt() (time.Time, bool) {
-	//TODO implement me
-	return time.Time{}, false
-}
-
-func (rm rawModule) Url() string {
-	for _, c := range rm.Contents {
-		if c.Type == "url" {
-			return c.FileUrl
-		}
-	}
-	return ""
-}
-
-func (rm rawModule) DownloadUrl() string {
-	for _, c := range rm.Contents {
-		if c.Type == "file" {
-			return c.FileUrl
-		}
-	}
-	return ""
-}
-
-func (rm rawModule) CreatedAt() time.Time {
-	for _, c := range rm.Contents {
-		if c.Type == "file" {
-			return time.Unix(int64(c.TimeCreated), 0)
-		}
-	}
-	return time.Time{}
-}
-
-func (rm rawModule) LastModifiedAt() time.Time {
-	for _, c := range rm.Contents {
-		if c.Type == "file" {
-			return time.Unix(int64(c.TimeModified), 0)
-		}
-	}
-	return time.Time{}
-}
-
-func (rm rawModule) SizeBytes() uint64 {
-	if rm.ContentsInfo == nil {
-		return 0
-	}
-	return rm.ContentsInfo.FilesSize
 }
 
 type rawDate struct {
@@ -253,16 +144,192 @@ type rawDate struct {
 type rawContent struct {
 	Type         string `json:"type"`
 	FileName     string `json:"filename"`
-	FileSize     uint64 `json:"filesize"`
+	FileSize     uint   `json:"filesize"`
 	FileUrl      string `json:"fileurl"`
-	TimeCreated  uint64 `json:"timecreated"`
-	TimeModified uint64 `json:"timemodified"`
+	TimeCreated  uint   `json:"timecreated"`
+	TimeModified uint   `json:"timemodified"`
 	MimeType     string `json:"mimetype"`
 	Author       string `json:"author"`
 }
 
 type rawContentsInfo struct {
-	FilesCount   uint   `json:"filescount"`
-	FilesSize    uint64 `json:"filessize"`
-	TimeModified uint64 `json:"timemodified"`
+	FilesCount   uint `json:"filescount"`
+	FilesSize    uint `json:"filessize"`
+	TimeModified uint `json:"timemodified"`
+}
+
+func (rm *rawModule) toBlock() goodle.Block {
+	m := module{
+		id:        rm.Id,
+		name:      rm.Name,
+		moodleUrl: rm.Url,
+	}
+	switch rm.ModName {
+	case "url":
+		return &moduleLink{
+			module: m,
+			link:   rm.Contents[0].FileUrl,
+		}
+	case "resource":
+		return &moduleFile{
+			module:       m,
+			fileName:     rm.Contents[0].FileName,
+			fileSize:     rm.Contents[0].FileSize,
+			fileUrl:      rm.Contents[0].FileUrl,
+			mimeType:     rm.Contents[0].MimeType,
+			timeCreated:  time.Unix(int64(rm.Contents[0].TimeCreated), 0),
+			timeModified: time.Unix(int64(rm.Contents[0].TimeModified), 0),
+		}
+	case "folder":
+		return &moduleFolder{
+			module: m,
+		}
+	case "assign":
+		//TODO parse all
+		var submissionsFrom, due, strict time.Time
+		for _, d := range rm.Dates {
+			if d.DataId == "allowsubmissionsfromdate" {
+				submissionsFrom = time.Unix(int64(d.Timestamp), 0)
+			} else if d.DataId == "duedate" {
+				due = time.Unix(int64(d.Timestamp), 0)
+			}
+		}
+		return &moduleAssignment{
+			module:              m,
+			allowSubmissionFrom: submissionsFrom,
+			dueDate:             due,
+			strictDueDate:       strict,
+		}
+	case "quiz":
+		//TODO parse dates
+		var submissionsFrom, due time.Time
+		return &moduleQuiz{
+			module:               m,
+			allowSubmissionsFrom: submissionsFrom,
+			dueDate:              due,
+		}
+	}
+	return &m
+}
+
+type module struct {
+	id        int
+	name      string
+	moodleUrl string
+}
+
+func (m *module) Id() int {
+	return m.id
+}
+
+func (m *module) Title() string {
+	return m.name
+}
+
+func (m *module) MoodleUrl() string {
+	return m.moodleUrl
+}
+
+func (m *module) Type() goodle.BlockType {
+	return goodle.BlockTypeUnknown
+}
+
+type moduleLink struct {
+	module
+	link string
+}
+
+func (ml *moduleLink) Type() goodle.BlockType {
+	return goodle.BlockTypeLink
+}
+
+func (ml *moduleLink) Url() string {
+	return ml.link
+}
+
+type moduleFile struct {
+	module
+	fileName     string
+	fileSize     uint
+	fileUrl      string
+	mimeType     string
+	timeCreated  time.Time
+	timeModified time.Time
+}
+
+func (mf *moduleFile) Type() goodle.BlockType {
+	return goodle.BlockTypeFile
+}
+
+func (mf *moduleFile) DownloadUrl() string {
+	return mf.fileUrl
+}
+
+func (mf *moduleFile) FileName() string {
+	return mf.fileName
+}
+
+func (mf *moduleFile) SizeBytes() uint {
+	return mf.fileSize
+}
+
+func (mf *moduleFile) MimeType() string {
+	return mf.mimeType
+}
+
+func (mf *moduleFile) CreatedAt() time.Time {
+	return mf.timeCreated
+}
+
+func (mf *moduleFile) LastModifiedAt() time.Time {
+	return mf.timeModified
+}
+
+type moduleFolder struct {
+	module
+}
+
+func (mf *moduleFolder) Type() goodle.BlockType {
+	return goodle.BlockTypeFolder
+}
+
+type moduleAssignment struct {
+	module
+	allowSubmissionFrom time.Time
+	dueDate             time.Time
+	strictDueDate       time.Time
+}
+
+func (ma *moduleAssignment) Type() goodle.BlockType {
+	return goodle.BlockTypeAssignment
+}
+
+func (ma *moduleAssignment) SubmissionsAcceptedFrom() time.Time {
+	return ma.allowSubmissionFrom
+}
+
+func (ma *moduleAssignment) DeadlineAt() time.Time {
+	return ma.dueDate
+}
+
+func (ma *moduleAssignment) StrictDeadlineAt() time.Time {
+	return ma.strictDueDate
+}
+
+type moduleQuiz struct {
+	module
+	allowSubmissionsFrom time.Time
+	dueDate              time.Time
+}
+
+func (m *moduleQuiz) Type() goodle.BlockType {
+	return goodle.BlockTypeQuiz
+}
+
+func (m *moduleQuiz) OpensAt() time.Time {
+	return m.allowSubmissionsFrom
+}
+
+func (m *moduleQuiz) ClosesAt() time.Time {
+	return m.dueDate
 }
