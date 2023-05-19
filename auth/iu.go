@@ -33,8 +33,8 @@ func NewIuAuthenticator() *IuAuthenticator {
 
 const moodleLoginPageUrl = "https://moodle.innopolis.university/admin/tool/mobile/launch.php?service=moodle_mobile_app&passport=12.34567890&urlscheme=moodlemobile"
 
-var loginRedirectLinkRegex = regexp.MustCompile("href=\"(https://moodle\\.innopolis\\.university/auth/oauth2/login\\.php\\?[^\"]+)\"")
-var innoAuthLinkPathRegex = regexp.MustCompile("action=\"(/adfs/oauth2/authorize[^\"]+)\"")
+var loginRedirectLinkRegex = regexp.MustCompile(`href="(https://moodle\.innopolis\.university/auth/oauth2/login\.php\?[^"]+)"`)
+var innoAuthLinkPathRegex = regexp.MustCompile(`action="(/adfs/oauth2/authorize[^"]+)"`)
 
 func (ia *IuAuthenticator) Authenticate(
 	ctx context.Context,
@@ -163,7 +163,7 @@ func getFormUrlEncodedForAuth(username string, password string) string {
 	return form.Encode()
 }
 
-var moodleMobileTokenRegex = regexp.MustCompile("moodlemobile://token=(\\S+)\\s*$")
+var moodleMobileTokenRegex = regexp.MustCompile(`moodlemobile://token=(\S+)\s*$`)
 
 func submitTokenPage(
 	ctx context.Context,
@@ -206,9 +206,9 @@ func submitTokenPage(
 	return token, nil
 }
 
-var submitTokenFormActionRegex = regexp.MustCompile("action=\"([^\"]+)\"")
-var submitTokenFormCodeFieldRegex = regexp.MustCompile("name=\"code\"\\s+value=\"([^\"]+)\"")
-var submitTokenFormStateFieldRegex = regexp.MustCompile("name=\"state\"\\s+value=\"([^\"]+)\"")
+var submitTokenFormActionRegex = regexp.MustCompile(`action="([^"]+)"`)
+var submitTokenFormCodeFieldRegex = regexp.MustCompile(`name="code"\s+value="([^"]+)"`)
+var submitTokenFormStateFieldRegex = regexp.MustCompile(`name="state"\s+value="([^"]+)"`)
 
 func parsePartsFromSubmitTokenPage(pageHtml string) (
 	action string,
