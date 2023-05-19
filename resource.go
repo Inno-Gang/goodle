@@ -8,3 +8,5 @@ type Resource interface {
 	Description() *richtext.RichText
 	MoodleUrl() string
 }
+
+var unused_var = 123
