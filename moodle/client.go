@@ -58,6 +58,9 @@ func (mc *Client) GetRecentCourses(ctx context.Context) ([]goodle.Course, error)
 func (mc *Client) GetCourseSections(ctx context.Context, courseId int) ([]goodle.Section, error) {
 	arg := fmt.Sprintf("{\"courseid\":\"%d\",\"options\":[{\"name\":\"excludemodules\",\"value\":\"0\"},{\"name\":\"excludecontents\",\"value\":\"0\"},{\"name\":\"includestealthmodules\",\"value\":\"1\"}]}", courseId)
 	data, err := mc.callWsFunc(ctx, "core_course_get_contents", arg)
+	if err != nil {
+		return nil, err
+	}
 
 	var rawSections []*rawSection
 	err = json.NewDecoder(strings.NewReader(data)).Decode(&rawSections)

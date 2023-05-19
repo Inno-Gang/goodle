@@ -9,13 +9,7 @@ func (rt *RichText) Text() string {
 	return rt.text
 }
 
-type Entity struct {
-	start uint
-	end   uint
-}
-
-type EntityBold struct{}
-type EntityItalic struct{}
+type Entity struct{}
 
 func ParseHtml(rawHtml string) (*RichText, error) {
 	//TODO implement HTML parsing
