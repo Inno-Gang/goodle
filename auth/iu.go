@@ -145,6 +145,9 @@ func loginInnoObtainWsToken(
 	}
 
 	token, err := base64.StdEncoding.DecodeString(tokenEncoded)
+	if err != nil {
+		return "", err
+	}
 
 	parts := strings.Split(string(token), ":::")
 	if len(parts) < 2 {
