@@ -2,31 +2,16 @@ package goodle
 
 import "time"
 
+//go:generate enumer -type=BlockType -trimprefix=BlockType
 type BlockType int8
 
-func (bt BlockType) Name() string {
-	switch bt {
-	case BlockTypeLink:
-		return "Link"
-	case BlockTypeFile:
-		return "File"
-	case BlockTypeFolder:
-		return "Folder"
-	case BlockTypeAssignment:
-		return "Assignment"
-	case BlockTypeQuiz:
-		return "Quiz"
-	}
-	return "Unknown"
-}
-
 const (
-	BlockTypeUnknown    BlockType = 0
-	BlockTypeLink       BlockType = 1
-	BlockTypeFile       BlockType = 2
-	BlockTypeFolder     BlockType = 3
-	BlockTypeAssignment BlockType = 4
-	BlockTypeQuiz       BlockType = 5
+	BlockTypeUnknown BlockType = iota + 1
+	BlockTypeLink
+	BlockTypeFile
+	BlockTypeFolder
+	BlockTypeAssignment
+	BlockTypeQuiz
 )
 
 type Block interface {
